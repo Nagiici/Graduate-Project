@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Madrid Restaurant Insights</title>
+  <meta name="description" content="Explore Madrid restaurants with summarised TripAdvisor reviews.">
+  <link rel="icon" href="/static/favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.5/dist/tailwind.min.css" rel="stylesheet">
+  <!-- 粒子背景库 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tsparticles@2/tsparticles.bundle.min.js"></script>
+  <script src="https://unpkg.com/@heroicons/v2/24/outline"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  
+  <style>
+    /* 拖尾特效 */
+    .cursor-trail {
+      position: fixed;
+      pointer-events: none;
+      font-size: 24px; /* 调整字号，根据需要修改 */
+      animation: foodTrail 0.5s ease-out forwards;
+    }
+    @keyframes foodTrail {
+      0% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(1.5);
+      } 
+    }
+    body {
+      transition: background 0.5s ease-in-out, color 0.5s ease-in-out;
+    }
+    .dark-mode {
+      background-color: #1a202c;
+      color: #f7fafc;
+    }
+    /* 卡片样式 */
+    .card {
+      backdrop-filter: blur(5px);
+      background: rgba(255,255,255,0.2); 
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 20px -3px rgba(0,0,0,0.15);
+    }
+    .dark-mode .card {
+      background: rgba(45,55,72,0.2); 
+      color: #f7fafc;
+    }
+    
+    
+    /* 统一表单元素样式（输入框和下拉框） */
+    .form-element {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.75rem;
+      background: rgba(243,244,246,0.3);
+      color: #1F2937;
+      transition: background 0.3s ease, border-color 0.3s ease;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+    }
+    .form-element:focus {
+      outline: none;
+      border-color: #4F46E5;
+      background: rgba(243,244,246,0.3);
+    }
+    /* 下拉框额外样式，保留箭头 */
+    .select-element {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%239CA3AF' viewBox='0 0 20 20'%3E%3Cpath fill-rule='evenodd' d='M10 12a1 1 0 01-.707-.293l-3-3a1 1 0 011.414-1.414L10 9.586l2.293-2.293a1 1 0 111.414 1.414l-3 3A1 1 0 0110 12z' clip-rule='evenodd'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 1rem center;
+    }
+    /* 表格样式 */
+    .modern-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      border-radius: 0.75rem;
+      overflow: hidden;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    }
+    .modern-table th {
+      background: rgba(59,130,246,0.2);
+      color: #2563EB;
+      font-weight: 600;
+      padding: 1rem;
+      text-align: left;
+    }
+    .modern-table td {
+      padding: 1rem;
+      border-top: 1px solid rgba(229,231,235,0.3);
+    }
+    .modern-table tr:hover td {
+      background: rgba(249,250,251,0.3);
+    }
+    /* 表格条纹效果 */
+    .modern-table tbody tr:nth-child(odd) {
+      background: rgba(249,250,251,0.3);
+    }
+    /* 分页组件样式 */
+    .pagination-container {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.3);
+      backdrop-filter: blur(10px);
+      padding: 0.75rem 1.5rem;
+      border-radius: 9999px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      border: 1px solid rgba(229,231,235,0.3);
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    .pagination-btn {
+      padding: 0.5rem 1rem;
+      width: 7rem;
+      height: 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9999px;
+      transition: background 0.3s ease, transform 0.3s ease;
+    }
+    .pagination-btn:hover {
+      transform: scale(1.05);
+    }
+    .nav-title-container {
+      width: 100%;
+      display: flex;
+      justify-content: center !important;
+    }
+    .page-info input {
+      width: 4rem;
+      height: 2.5rem;
+      padding: 0;
+      text-align: center;
+      border: 1px solid transparent;
+      outline: none;
+    }
+    /* 导航栏样式优化 */
+    nav {
+      background: linear-gradient(90deg, #4F46E5, #9333EA);
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+    }
+    nav h1 {
+      color: #fff;
+    }
+  </style>
+</head>
+<body class="{ 'dark-mode': isDark }">
+  <div id="app" class="min-h-screen font-['Inter'] text-center">
+    <!-- 粒子背景 -->
+    <div id="particles-js" class="fixed inset-0 -z-10 opacity-30 dark:opacity-20"></div>
+    
+    <!-- 导航栏 -->
+    <nav class="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
+        <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-500 dark:from-blue-400 dark:to-purple-300 animate-gradient">
+          Madrid Food Explorer
+        </h1>
+        <button @click="toggleDarkMode" aria-label="Toggle Dark Mode" class="bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white px-4 py-2 rounded-lg text-lg">
+          [[ isDark ? '🌞 Light Mode' : '🌙 Dark Mode' ]]
+        </button>
+      </nav>
+
+    <!-- 主内容区 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 pb-32">
+      <!-- 餐厅选择卡片 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+        <!-- 搜索餐厅卡片 -->
+        <div class="card h-full flex flex-col justify-between">
+          <label for="restaurant-search" class="block text-lg font-semibold text-gray-700 dark:text-gray-200">
+            Search Restaurants
+          </label>
+          <input
+            id="restaurant-search"
+            v-model="searchQuery"
+            type="text"
+            placeholder="Enter restaurant name..."
+            class="form-element mt-2"
+          />
+        </div>
+        
+        <!-- 发现餐厅卡片 -->
+        <div class="card h-full flex flex-col justify-between">
+          <label for="restaurant-select" class="block text-lg font-semibold text-gray-700 dark:text-gray-200">
+            Discover Restaurants
+          </label>
+          <select
+            id="restaurant-select"
+            v-model="selectedRestaurant"
+            @change="fetchDetails"
+            class="form-element select-element mt-2"
+          >
+            <option value="">-- Select a Restaurant --</option>
+            <option v-for="name in filteredRestaurants" :value="name">[[ name ]]</option>
+          </select>
+        </div>
+      </div>
+      
+      
+      
+        <!-- 餐厅详情展示 -->
+        <div v-if="currentRestaurant" class="card">
+            <h2 class="text-2xl font-bold mb-4">[[ selectedRestaurant ]]</h2>
+            <p class="text-lg">Average Rating: <span class="text-yellow-500">[[ currentRestaurant.average_rating ]]</span></p>
+            <ul class="list-disc pl-6 mt-2">
+                <li v-for="(summary, index) in currentRestaurant.summaries" :key="index" class="text-gray-700 dark:text-gray-300">[[ summary ]]</li>
+            </ul>
+        </div>
+
+      <!-- 排序餐厅列表 -->
+      <div class="card">
+        <button @click="fetchSorted" class="bg-blue-500 text-white px-6 py-2 rounded-lg mb-4">
+          [[ loading ? 'Loading...' : 'Show Sorted Restaurants' ]]
+        </button>
+
+        <table class="modern-table" v-if="paginatedRestaurants.length > 0">
+            <thead>
+              <tr>
+                <th class="rounded-tl-xl">Restaurant</th>
+                <th>Rating</th>
+                <th class="rounded-tr-xl">Summary</th>
+              </tr>
+            </thead>
+          <tbody>
+            <tr v-for="(restaurant, index) in paginatedRestaurants" :key="index" class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td class="font-medium">[[ restaurant.restaurant_name ]]</td>
+                <td>
+                  <div class="flex items-center space-x-2">
+                    <span class="text-yellow-500">★</span>
+                    <span>[[ restaurant.rating_review.toFixed(2) ]]</span>
+                  </div>
+                </td>
+              <td class="max-w-xs truncate hover:max-w-none hover:whitespace-normal">
+                [[ restaurant.summary ]]
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <!-- 加载遮罩 -->
+        <div v-if="loading" class="fixed inset-0 bg-black/10 backdrop-blur-sm flex items-center justify-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+          </div>
+        </div>
+        <div class="h-32"></div>
+    </main>
+
+        <!-- 分页组件 -->
+        <div class="pagination-container" v-if="paginatedRestaurants.length > 0">
+            <button @click="prevPage" class="pagination-btn bg-blue-500/20 text-blue-600 dark:text-blue-300 hover:bg-blue-500/30" aria-label="Previous Page">
+              <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 48 48">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>
+              Previous
+            </button>
+            
+            <!-- 当前页 / 总页数 -->
+            <div class="page-info flex items-center">
+                <input type="number" v-model.number="currentPage" @change="handlePageInput" :max="totalPages" min="1" aria-label="Current Page">
+                <span class="ml-2">/ [[ totalPages ]]</span>
+              </div>
+            
+            <!-- Next 按钮 -->
+            <button @click="nextPage" class="pagination-btn bg-blue-500/20 text-blue-600 dark:text-blue-300 hover:bg-blue-500/30" aria-label="Next Page">
+                Next
+                <svg class="w-5 h-5 ml-1" fill="none" stroke="currentColor" viewBox="-20 -25 96 96">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+  </div>
+
+  <script>
+    const app = Vue.createApp({
+      delimiters: ['[[', ']]'],  
+      data() {
+        return {
+          restaurantNames: [],
+          selectedRestaurant: '',
+          currentRestaurant: null,
+          sortedRestaurants: [],  // 所有餐厅数据
+          paginatedRestaurants: [], // 当前页显示的数据
+          isDark: localStorage.getItem('darkMode') === 'true',
+          currentPage: 1,
+          pageSize: 10,  // 每页显示 10 条数据
+          totalPages: 1,
+          loading: false,
+          searchQuery: '' // 搜索关键字
+        }
+      },
+      computed: {
+        // 根据 searchQuery 过滤餐厅名称列表
+        filteredRestaurants() {
+          if (!this.searchQuery.trim()) {
+            return this.restaurantNames;
+          }
+          const query = this.searchQuery.toLowerCase();
+          return this.restaurantNames.filter(name =>
+            name.toLowerCase().includes(query)
+          );
+        }
+      },
+      mounted() {
+        let lastTrailTime = 0;  // 全局变量，用于记录上次拖尾生成的时间
+        this.fetchRestaurants();
+        document.body.classList.toggle('dark-mode', this.isDark);
+        this.initAnimations();
+        // 使用 tsParticles 初始化粒子背景，使用 food emoji 作为粒子
+        tsParticles.load("particles-js", {
+          particles: {
+            number: {
+              value: 50,
+              density: {
+                enable: true,
+                value_area: 800
+              }
+            },
+            shape: {
+              type: "char",
+              character: {
+                value: ["🍕", "🍔", "🍟", "🌭", "🍣", "🍜"],
+                font: "Verdana",
+                style: "",
+                weight: "400",
+                fill: true
+              }
+            },
+            size: {
+              value: 20,
+              random: { enable: true, minimumValue: 10 }
+            },
+            opacity: {
+              value: 0.5,
+              random: true
+            },
+            move: {
+              enable: true,
+              speed: 2,
+              direction: "none",
+              random: true,
+              straight: false,
+              outMode: "out"
+            }
+          },
+          interactivity: {
+            events: {
+              onhover: {
+                enable: true,
+                mode: "repulse"
+              },
+              onclick: {
+                enable: true,
+                mode: "push"
+              }
+            },
+            modes: {
+              repulse: {
+                distance: 100
+              },
+              push: {
+                particles_nb: 4
+              }
+            }
+          },
+          retina_detect: true
+        });
+
+        // 拖尾特效
+        document.addEventListener('mousemove', (e) => {
+          const now = Date.now();
+          // 如果距离上次生成不足 100 毫秒，则不生成
+          if (now - lastTrailTime < 100) return;
+          lastTrailTime = now;
+          
+          const foodEmojis = ['🍕', '🍔', '🍟', '🌭', '🍣', '🍜'];
+          const trail = document.createElement('div');
+          trail.className = 'cursor-trail';
+          // 随机选择一个 emoji
+          trail.innerText = foodEmojis[Math.floor(Math.random() * foodEmojis.length)];
+          trail.style.left = e.clientX + 'px';
+          trail.style.top = e.clientY + 'px';
+          document.body.appendChild(trail);
+          setTimeout(() => trail.remove(), 500); // 动画时长与 CSS keyframes 对应
+        });
+        
+        // 使用防抖函数监听窗口大小变化
+        window.addEventListener('resize', this.debounce(this.adjustMainPadding, 200));
+        // 初始调整内边距
+        this.$nextTick(() => {
+          this.adjustMainPadding();
+        });
+      },
+      watch: {
+        // 每当分页数据更新后重新计算内边距
+        paginatedRestaurants() {
+          this.$nextTick(() => {
+            this.adjustMainPadding();
+          });
+        }
+      },
+      methods: {
+        async fetchRestaurants() {
+          try {
+            const response = await axios.get('/api/restaurants');
+            this.restaurantNames = response.data;
+          } catch (error) {
+            alert('Failed to load restaurant list');
+          }
+        },
+
+        async fetchDetails() {
+          if (!this.selectedRestaurant) return;
+          this.loading = true;
+          try {
+            const response = await axios.get('/api/restaurant_details', { params: { name: this.selectedRestaurant } });
+            this.currentRestaurant = response.data;
+          } catch (error) {
+            alert(error.response?.data?.error || 'Error loading details');
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        async fetchSorted() {
+            this.loading = true;
+            try {
+              const response = await axios.get('/api/sorted_restaurants');
+              this.sortedRestaurants = response.data;
+              this.totalPages = Math.ceil(this.sortedRestaurants.length / this.pageSize);
+              this.changePage(1);
+            } catch (error) {
+              alert('Failed to load sorted list');
+            } finally {
+              this.loading = false;
+            }
+          },
+
+        changePage(page) {
+            this.currentPage = page;
+            const start = (page - 1) * this.pageSize;
+            const end = start + this.pageSize;
+            this.paginatedRestaurants = this.sortedRestaurants.slice(start, end);
+            
+            // 等待 DOM 更新完毕，再调整 padding
+            this.$nextTick(() => {
+              this.adjustMainPadding();
+            });
+        },
+
+        nextPage() {
+          if (this.currentPage < this.totalPages) {
+            this.changePage(this.currentPage + 1);
+          }
+        },
+
+        prevPage() {
+          if (this.currentPage > 1) {
+            this.changePage(this.currentPage - 1);
+          }
+        },
+
+        toggleDarkMode() {
+          this.isDark = !this.isDark;
+          document.body.classList.toggle('dark-mode', this.isDark);
+          localStorage.setItem('darkMode', this.isDark);
+        },
+
+        initAnimations() {
+          gsap.from('nav', { opacity: 0, y: -50, duration: 1 });
+          gsap.from('main', { opacity: 0, y: 50, duration: 1, delay: 0.5 });
+        },
+        
+        handlePageInput() {
+          if (this.currentPage < 1) this.currentPage = 1;
+          if (this.currentPage > this.totalPages) this.currentPage = this.totalPages;
+          this.changePage(this.currentPage);
+        },
+      adjustMainPadding() {
+        const pagination = document.querySelector('.pagination-container');
+        const mainContent = document.querySelector('main');
+        if (pagination && mainContent) {
+          const paginationHeight = pagination.offsetHeight;
+          mainContent.style.paddingBottom = (paginationHeight + 20) + 'px';
+        }
+    },
+    // 简单的防抖函数，delay 为延迟毫秒数
+    debounce(func, delay) {
+        let timeout;
+        return function (...args) {
+          clearTimeout(timeout);
+          timeout = setTimeout(() => func.apply(this, args), delay);
+        };
+      }
+    }
+  });
+
+    app.mount('#app');
+  </script>
+  <script>
+    function adjustMainPadding() {
+      const pagination = document.querySelector('.pagination-container');
+      const mainContent = document.querySelector('main');
+      if (pagination && mainContent) {
+        const paginationHeight = pagination.offsetHeight;
+        // 设置一个额外的间距，比如增加20px，确保内容不会被遮挡
+        mainContent.style.paddingBottom = (paginationHeight + 20) + 'px';
+      }
+    }
+
+    // 在窗口加载和尺寸变化时调用
+    window.addEventListener('resize', adjustMainPadding);
+    window.addEventListener('load', adjustMainPadding);
+  </script>
+  
+</body>
+</html>
