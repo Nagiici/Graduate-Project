@@ -1,19 +1,18 @@
 import pandas as pd
 import re
+from pathlib import Path
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 import nltk
 
-# 指定 NLTK 的数据存储目录
-nltk.data.path.append(r'C:/Users/asdfadq/Desktop/Graduation_Design/nltk_data')
-
-# 确保 punkt 和 stopwords 已经下载
-nltk.download('punkt', download_dir=r'C:/Users/asdfadq/Desktop/Graduation_Design/nltk_data')
-nltk.download('stopwords', download_dir=r'C:/Users/asdfadq/Desktop/Graduation_Design/nltk_data')
-nltk.download('punkt_tab', download_dir=r'C:/Users/asdfadq/Desktop/Graduation_Design/nltk_data')
+# 指定并确保 NLTK 数据目录存在
+nltk_data_dir = Path(__file__).resolve().parent / 'nltk_data'
+nltk.data.path.append(str(nltk_data_dir))
+nltk.download('punkt', download_dir=str(nltk_data_dir))
+nltk.download('stopwords', download_dir=str(nltk_data_dir))
 
 # 加载清洗后的数据
-file_path = 'C:/Users/asdfadq/Desktop/Graduation_Design/cleaned_dataset.xlsx'
+file_path = Path(__file__).resolve().parent / 'cleaned_dataset.xlsx'
 cleaned_data = pd.read_excel(file_path)
 
 # 定义英语的停用词
